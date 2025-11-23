@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
-# install.sh - The Definitive Debian 13 i3 Workstation (Final Production Build)
-# Target: ASUS ROG Strix G17 | Features: Firefox Official | Omarchy Keys | Nvidia
+# install.sh - The Definitive Debian 13 i3 Workstation (Version 8.0 Final)
+# Target: ASUS ROG Strix G17 | Features: Multimedia Keys | Firefox | Nvidia Safe
 #
 # INSTRUCTIONS:
 # 1. Install Debian (Select "Standard System Utilities" ONLY. Root Password: EMPTY).
@@ -36,7 +36,7 @@ fi
 
 # Sudo Check
 if ! command -v sudo &> /dev/null; then
-    err "Error: 'sudo' is missing. You set a Root password during install."
+    err "Error: 'sudo' is missing. You likely set a Root password during install."
     err "Fix: Su to root, 'apt install sudo', 'usermod -aG sudo youruser', reboot."
     exit 1
 fi
@@ -110,9 +110,9 @@ PKGS=(
   firmware-iwlwifi    # Intel AX201
   firmware-misc-nonfree
   
-  # Audio/Power
+  # Audio/Power/Auth
   pipewire pipewire-pulse wireplumber pavucontrol
-  tlp acpi upower policykit-1-gnome mate-polkit
+  tlp acpi upower mate-polkit policykit-1-gnome
 )
 
 log "Installing System Packages..."
@@ -192,7 +192,7 @@ fi
 # 4. NVIDIA DRIVER
 # ****************************************************************
 log "Checking for Nvidia..."
-# Install Headers Metapackage (Safest method)
+# Install Headers Metapackage (Safest method for updates)
 sudo apt install -y linux-headers-amd64
 
 if apt-cache show nvidia-driver >/dev/null 2>&1; then
@@ -246,15 +246,19 @@ EOF
 # 7. CONFIGS
 # ****************************************************************
 
-# --- Dynamic Polkit Agent Detection ---
-if [ -f /usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1 ]; then
+# --- Dynamic Polkit Agent Detection (Trixie Proof) ---
+# We look for Mate first (stable), then Gnome (classic), then fallback.
+if [ -f /usr/lib/mate-polkit/polkit-mate-authentication-agent-1 ]; then
+    POLKIT_BIN="/usr/lib/mate-polkit/polkit-mate-authentication-agent-1"
+elif [ -f /usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1 ]; then
     POLKIT_BIN="/usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1"
 elif [ -f /usr/libexec/polkit-gnome-authentication-agent-1 ]; then
     POLKIT_BIN="/usr/libexec/polkit-gnome-authentication-agent-1"
 else
+    # Last resort search
     POLKIT_BIN=$(find /usr -name "polkit-gnome-authentication-agent-1" 2>/dev/null | head -n 1)
 fi
-log "Polkit agent: $POLKIT_BIN"
+log "Polkit agent detected: $POLKIT_BIN"
 
 # --- Picom ---
 mkdir -p ~/.config/picom
@@ -404,6 +408,13 @@ bindsym \$mod+Shift+c reload
 # 7. Utilities
 bindsym Print exec flameshot gui                       # Screenshot
 bindsym \$mod+Shift+s exec flameshot gui                # Alternate Screenshot
+
+# 8. Hardware Keys (Laptop Multimedia)
+bindsym XF86AudioRaiseVolume exec pactl set-sink-volume @DEFAULT_SINK@ +5%
+bindsym XF86AudioLowerVolume exec pactl set-sink-volume @DEFAULT_SINK@ -5%
+bindsym XF86AudioMute exec pactl set-sink-mute @DEFAULT_SINK@ toggle
+bindsym XF86MonBrightnessUp exec brightnessctl s +5%
+bindsym XF86MonBrightnessDown exec brightnessctl s 5%-
 
 # --- Autostart ---
 exec_always --no-startup-id picom --config ~/.config/picom/picom.conf
